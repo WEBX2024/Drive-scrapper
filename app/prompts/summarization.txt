@@ -1,0 +1,14 @@
+You are a professional document summarizer. Your task is to produce a concise, factual summary of the following document.
+
+Rules:
+- Write exactly 5 to 10 sentences.
+- Be factual — only include information explicitly stated in the document.
+- Do NOT hallucinate, infer, or add information that is not present.
+- Use clear, professional language.
+- Preserve the original meaning and intent of the document.
+- If the document is too short to warrant 5 sentences, summarize it as accurately as possible in fewer sentences and note that the source material is brief.
+
+Document text:
+{document_text}
+
+Summary:

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summaries — GenAI Drive Summarizer</title>
+    <style>
+      :root {
+        --bg: #f8f9fa;
+        --card: #ffffff;
+        --primary: #4285f4;
+        --primary-hover: #3367d6;
+        --text: #202124;
+        --muted: #5f6368;
+        --border: #dadce0;
+        --row-alt: #f1f3f4;
+        --success: #0f9d58;
+        --danger: #d93025;
+        --warning-bg: #fef7e0;
+        --warning-border: #f9ab00;
+        --warning-text: #5f4b00;
+        --pdf-bg: #d93025;
+        --pdf-hover: #b3261e;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 40px 24px;
+      }
+
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .actions a {
+        display: inline-block;
+        padding: 10px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: background 0.2s;
+      }
+
+      .btn-csv {
+        background: var(--success);
+        color: #fff;
+      }
+      .btn-csv:hover {
+        background: #0b8043;
+      }
+
+      .btn-pdf {
+        background: var(--pdf-bg);
+        color: #fff;
+        margin-left: 8px;
+      }
+      .btn-pdf:hover {
+        background: var(--pdf-hover);
+      }
+
+      .btn-home {
+        background: var(--primary);
+        color: #fff;
+        margin-left: 8px;
+      }
+      .btn-home:hover {
+        background: var(--primary-hover);
+      }
+
+      /* Warning banner */
+      .banner-warning {
+        background: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+        color: var(--warning-text);
+        border-radius: 8px;
+        padding: 12px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      /* Table */
+      .table-wrap {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        background: var(--primary);
+        color: #fff;
+        text-align: left;
+        padding: 14px 20px;
+        font-size: 0.9rem;
+        letter-spacing: 0.03em;
+      }
+
+      tbody td {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.88rem;
+        line-height: 1.55;
+        vertical-align: top;
+      }
+
+      tbody tr:nth-child(even) {
+        background: var(--row-alt);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .file-name {
+        white-space: nowrap;
+        font-weight: 600;
+        min-width: 160px;
+      }
+
+      .empty-msg {
+        text-align: center;
+        padding: 48px 20px;
+        color: var(--muted);
+        font-size: 1rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 640px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .actions a {
+          margin-left: 0;
+          margin-top: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>📊 Document Summaries</h1>
+        <div class="actions">
+          <a class="btn-csv" href="/download">⬇ Download CSV</a>
+          <a class="btn-pdf" href="/download/pdf">⬇ Download PDF</a>
+          <a class="btn-home" href="/">← Home</a>
+        </div>
+      </header>
+
+      {% if stopped %}
+      <div class="banner-warning">
+        ⚠ Processing was stopped early. Showing {{ summaries|length }} of {{
+        total }} file(s).
+      </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        {% if summaries %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in summaries %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td class="file-name">{{ item.file_name }}</td>
+              <td>{{ item.summary }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty-msg">
+          No summaries available yet. Go back and process your Drive files
+          first.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>
