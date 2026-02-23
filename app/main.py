@@ -1,17 +1,4 @@
-"""
-main.py — FastAPI application entry-point.
-
-Defines routes for the GenAI Document Summarizer pipeline:
-  /              → Landing page
-  /auth/callback → OAuth2 callback
-  /process       → Run the full pipeline (background)
-  /processing    → Live progress page with stop button
-  /process/status → JSON progress polling
-  /process/stop  → Stop the current scan
-  /results       → View summaries in an HTML table
-  /download      → Export summaries as CSV
-  /download/pdf  → Export summaries as PDF
-"""
+# main.py — FastAPI entry-point defining all routes for the document summarizer pipeline
 
 import csv
 import io
@@ -27,18 +14,14 @@ from fpdf import FPDF
 from app.config import TEMPLATES_DIR
 from app.services import drive_service, parser_service, summary_service
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # App & templates
-# ---------------------------------------------------------------------------
 app = FastAPI(
     title="GenAI Drive Summarizer",
     description="Summarize Google Drive documents using Groq.",
@@ -47,13 +30,11 @@ app = FastAPI(
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# ---------------------------------------------------------------------------
 # In-memory state (reset each server restart)
-# ---------------------------------------------------------------------------
 _credentials_store: dict[str, Any] = {}
 _summaries: list[dict[str, str]] = []
 
-# Background processing state
+# Background processing state (thread-safe)
 _stop_requested = threading.Event()
 _processing_lock = threading.Lock()
 _processing_status: dict[str, Any] = {
@@ -65,20 +46,14 @@ _processing_status: dict[str, Any] = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Background worker
-# ---------------------------------------------------------------------------
 
 def _run_pipeline(credentials):
-    """Execute the pipeline in a background thread.
-
-    Checks _stop_requested before processing each file so the user
-    can halt the scan mid-run.  Partial results are kept.
-    """
+    """Run the full pipeline in a background thread; supports mid-run stopping."""
     global _summaries
 
     try:
-        # 1. List files
+        # List files from Drive
         files = drive_service.list_files(credentials)
         if not files:
             logger.info("No supported files found in Drive folder.")
@@ -90,10 +65,10 @@ def _run_pipeline(credentials):
         with _processing_lock:
             _processing_status["total"] = len(files)
 
-        # 2-4. Download → Parse → Summarize each file
+        # Download, parse, and summarize each file
         results: list[dict[str, str]] = []
         for file_info in files:
-            # ── Check stop flag BEFORE processing ──
+            # Check stop flag before processing
             if _stop_requested.is_set():
                 logger.info("Stop requested – halting pipeline after %d file(s).", len(results))
                 with _processing_lock:
@@ -120,7 +95,7 @@ def _run_pipeline(credentials):
             with _processing_lock:
                 _processing_status["completed"] = len(results)
 
-        # 5. Store results (partial or complete)
+        # Store results (partial or complete)
         _summaries.clear()
         _summaries.extend(results)
         logger.info("Pipeline complete — %d file(s) processed.", len(results))
@@ -133,13 +108,11 @@ def _run_pipeline(credentials):
             _processing_status["current_file"] = ""
 
 
-# ---------------------------------------------------------------------------
 # Routes
-# ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    """Landing page with a link to connect to Google Drive."""
+    """Render the landing page with Google Drive connect link."""
     auth_url = drive_service.get_auth_url()
     return f"""
     <!DOCTYPE html>
@@ -224,10 +197,7 @@ async def index():
 
 @app.get("/auth/callback")
 async def auth_callback(code: str | None = None, error: str | None = None):
-    """Handle the OAuth2 redirect from Google.
-
-    Exchanges the authorization code for credentials and stores them.
-    """
+    """Handle OAuth2 callback — exchange auth code for credentials."""
     if error:
         logger.error("OAuth2 error: %s", error)
         raise HTTPException(status_code=400, detail=f"OAuth2 error: {error}")
@@ -260,7 +230,7 @@ async def process_files():
         if _processing_status["is_running"]:
             return RedirectResponse(url="/processing", status_code=303)
 
-        # Reset state
+        # Reset processing state
         _stop_requested.clear()
         _processing_status["is_running"] = True
         _processing_status["total"] = 0
@@ -332,19 +302,19 @@ async def download_csv():
 
 
 def _sanitize_for_pdf(text: str) -> str:
-    """Replace common unicode characters with latin-1 safe equivalents."""
+    """Replace common unicode chars with latin-1 safe equivalents."""
     replacements = {
-        "\u2018": "'", "\u2019": "'",   # smart single quotes
-        "\u201c": '"', "\u201d": '"',   # smart double quotes
-        "\u2013": "-", "\u2014": "--",  # en-dash, em-dash
-        "\u2026": "...",                # ellipsis
-        "\u2022": "*",                  # bullet
-        "\u00a0": " ",                  # non-breaking space
-        "\u200b": "",                   # zero-width space
+        "\u2018": "'", "\u2019": "'",
+        "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "--",
+        "\u2026": "...",
+        "\u2022": "*",
+        "\u00a0": " ",
+        "\u200b": "",
     }
     for uni, asc in replacements.items():
         text = text.replace(uni, asc)
-    # Fallback: drop any remaining non-latin-1 chars
+    # Drop remaining non-latin-1 chars
     return text.encode("latin-1", errors="replace").decode("latin-1")
 
 
@@ -357,7 +327,7 @@ async def download_pdf():
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Title page
+    # PDF title page
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 20)
     pdf.cell(0, 20, "Document Summaries", new_x="LMARGIN", new_y="NEXT", align="C")
@@ -369,7 +339,7 @@ async def download_pdf():
     )
     pdf.ln(10)
 
-    # Each summary
+    # Write each summary entry
     for i, item in enumerate(_summaries, start=1):
         file_name = _sanitize_for_pdf(item["file_name"])
         summary = _sanitize_for_pdf(item["summary"])
@@ -384,7 +354,7 @@ async def download_pdf():
         pdf.multi_cell(0, 6, summary)
         pdf.ln(6)
 
-    # Output to bytes
+    # Output PDF as bytes
     pdf_bytes = pdf.output()
     return StreamingResponse(
         io.BytesIO(pdf_bytes),

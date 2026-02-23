@@ -1,10 +1,4 @@
-"""
-parser_service.py — Unified text extraction from supported file types.
-
-Provides a single ``extract_text()`` entry-point that detects the file type
-and delegates to the appropriate parser (pdfplumber, python-docx, or plain
-text reader).
-"""
+# parser_service.py — Unified text extraction from supported file types (PDF, DOCX, TXT)
 
 import logging
 from pathlib import Path
@@ -16,19 +10,10 @@ from app.utils.file_utils import get_file_extension, clean_text
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Per-type extractors (private)
-# ---------------------------------------------------------------------------
+# Per-type extractors
 
 def _extract_pdf(file_path: str) -> str:
-    """Extract text from a PDF file using pdfplumber.
-
-    Args:
-        file_path: Absolute path to the PDF file.
-
-    Returns:
-        Concatenated text from all pages.
-    """
+    """Extract text from a PDF using pdfplumber."""
     pages_text: list[str] = []
     with pdfplumber.open(file_path) as pdf:
         for page in pdf.pages:
@@ -39,34 +24,18 @@ def _extract_pdf(file_path: str) -> str:
 
 
 def _extract_docx(file_path: str) -> str:
-    """Extract text from a DOCX file using python-docx.
-
-    Args:
-        file_path: Absolute path to the DOCX file.
-
-    Returns:
-        Concatenated paragraph text.
-    """
+    """Extract text from a DOCX using python-docx."""
     doc = Document(file_path)
     return "\n".join(para.text for para in doc.paragraphs if para.text)
 
 
 def _extract_txt(file_path: str) -> str:
-    """Read the full contents of a plain-text file.
-
-    Args:
-        file_path: Absolute path to the TXT file.
-
-    Returns:
-        File content as a string.
-    """
+    """Read the full contents of a plain-text file."""
     with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
         return fh.read()
 
 
-# ---------------------------------------------------------------------------
-# Extractor dispatch table (dynamic — add new types here)
-# ---------------------------------------------------------------------------
+# Extractor dispatch table
 _EXTRACTORS: dict[str, callable] = {
     "pdf": _extract_pdf,
     "docx": _extract_docx,
@@ -74,27 +43,10 @@ _EXTRACTORS: dict[str, callable] = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Public API
-# ---------------------------------------------------------------------------
 
 def extract_text(file_path: str) -> str:
-    """Extract and clean text from a supported file.
-
-    Detects the file type by extension, delegates to the appropriate parser,
-    and returns cleaned text.
-
-    Args:
-        file_path: Absolute path to the file.
-
-    Returns:
-        Cleaned, whitespace-normalised text content.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If the file extension is unsupported.
-        RuntimeError: If extraction fails for any other reason.
-    """
+    """Detect file type, extract text via the appropriate parser, and return cleaned content."""
     path = Path(file_path)
 
     if not path.exists():

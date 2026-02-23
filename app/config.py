@@ -1,9 +1,4 @@
-"""
-config.py — Application configuration.
-
-Loads environment variables from .env, validates required keys,
-and exposes a typed Settings object used across the application.
-"""
+# config.py — Loads .env, validates required keys, and exposes a typed Settings object
 
 import os
 import logging
@@ -11,30 +6,17 @@ from pathlib import Path
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-# ---------------------------------------------------------------------------
-# Paths (derived dynamically from this file's location)
-# ---------------------------------------------------------------------------
+# Paths (derived from this file's location)
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
-"""Root directory of the project (genai-drive-summarizer/)."""
-
 DOWNLOAD_DIR: Path = BASE_DIR / "data" / "downloads"
-"""Directory where downloaded Drive files are stored."""
-
 PROMPTS_DIR: Path = Path(__file__).resolve().parent / "prompts"
-"""Directory containing prompt template files."""
-
 TEMPLATES_DIR: Path = BASE_DIR / "templates"
-"""Directory containing Jinja2 HTML templates."""
 
-# ---------------------------------------------------------------------------
 # Load .env
-# ---------------------------------------------------------------------------
 _env_path: Path = BASE_DIR / ".env"
 load_dotenv(dotenv_path=_env_path)
 
-# ---------------------------------------------------------------------------
 # Required environment variable names
-# ---------------------------------------------------------------------------
 _REQUIRED_VARS: list[str] = [
     "GROQ_API_KEY",
     "GROQ_MODEL",
@@ -46,7 +28,7 @@ _REQUIRED_VARS: list[str] = [
 
 @dataclass(frozen=True)
 class Settings:
-    """Immutable application settings loaded from environment variables."""
+    """Immutable application settings from environment variables."""
 
     groq_api_key: str
     groq_model: str
@@ -57,14 +39,7 @@ class Settings:
 
 
 def _load_settings() -> Settings:
-    """Validate and load all required settings from the environment.
-
-    Raises:
-        RuntimeError: If any required environment variable is missing or empty.
-
-    Returns:
-        A frozen Settings instance.
-    """
+    """Validate required env vars and return a frozen Settings instance."""
     missing: list[str] = [v for v in _REQUIRED_VARS if not os.getenv(v)]
     if missing:
         raise RuntimeError(
@@ -82,7 +57,7 @@ def _load_settings() -> Settings:
     )
 
 
-# Singleton — validates at import time so the app fails fast.
+# Singleton — validates at import time for fast failure
 logger = logging.getLogger(__name__)
 settings: Settings = _load_settings()
 logger.info("Configuration loaded successfully.")

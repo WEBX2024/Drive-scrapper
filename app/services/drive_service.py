@@ -1,9 +1,4 @@
-"""
-drive_service.py — Google Drive integration via OAuth2.
-
-Handles authentication, file listing (all accessible files with pagination),
-and downloading of supported file types (.pdf, .docx, .txt).
-"""
+# drive_service.py — Google Drive OAuth2 auth, file listing with pagination, and downloading
 
 import io
 import logging
@@ -20,9 +15,7 @@ from app.utils.file_utils import ensure_directory, get_file_extension
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Supported MIME types ↔ file extensions (dynamic — add entries to extend)
-# ---------------------------------------------------------------------------
+# Supported MIME types ↔ file extensions
 SUPPORTED_MIME_MAP: dict[str, str] = {
     "application/pdf": "pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -31,20 +24,14 @@ SUPPORTED_MIME_MAP: dict[str, str] = {
 
 SUPPORTED_EXTENSIONS: set[str] = set(SUPPORTED_MIME_MAP.values())
 
-# Google API scopes required for read-only Drive access
+# Read-only Drive API scope
 _SCOPES: list[str] = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
-# ---------------------------------------------------------------------------
 # OAuth2 helpers
-# ---------------------------------------------------------------------------
 
 def _build_flow() -> Flow:
-    """Construct a Google OAuth2 flow from environment-driven config.
-
-    Returns:
-        A configured ``Flow`` instance.
-    """
+    """Build a Google OAuth2 flow from environment config."""
     client_config: dict[str, Any] = {
         "web": {
             "client_id": settings.google_client_id,
@@ -60,11 +47,7 @@ def _build_flow() -> Flow:
 
 
 def get_auth_url() -> str:
-    """Generate the Google OAuth2 authorization URL.
-
-    Returns:
-        The full URL the user should visit to grant access.
-    """
+    """Generate the Google OAuth2 authorization URL."""
     flow = _build_flow()
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -76,63 +59,33 @@ def get_auth_url() -> str:
 
 
 def exchange_code(code: str) -> Credentials:
-    """Exchange an authorization code for Google OAuth2 credentials.
-
-    Args:
-        code: The authorization code received from the OAuth2 callback.
-
-    Returns:
-        Valid ``Credentials`` that can be used for Drive API calls.
-
-    Raises:
-        Exception: If the token exchange fails.
-    """
+    """Exchange an OAuth2 authorization code for credentials."""
     flow = _build_flow()
     flow.fetch_token(code=code)
     logger.info("OAuth2 token exchange successful.")
     return flow.credentials
 
 
-# ---------------------------------------------------------------------------
 # Drive operations
-# ---------------------------------------------------------------------------
 
 def _get_drive_service(credentials: Credentials):
-    """Build an authorised Google Drive API service client.
-
-    Args:
-        credentials: Valid OAuth2 credentials.
-
-    Returns:
-        A Drive v3 service resource.
-    """
+    """Build an authorised Drive v3 API service client."""
     return build("drive", "v3", credentials=credentials)
 
 
 def list_files(credentials: Credentials) -> list[dict[str, str]]:
-    """List ALL supported files accessible to the authenticated user.
-
-    Handles pagination automatically. Filters to supported MIME types only
-    and skips Google Workspace native formats. Enforces a configurable
-    safety cap (MAX_FILES_CAP) to prevent runaway processing on large drives.
-
-    Args:
-        credentials: Valid OAuth2 credentials.
-
-    Returns:
-        A list of dicts with keys ``id``, ``name``, and ``mimeType``.
-    """
+    """List all supported files from Drive with pagination and a safety cap."""
     service = _get_drive_service(credentials)
     max_cap: int = settings.max_files_cap
 
-    # Build MIME-type filter dynamically from the supported map
+    # Build MIME-type query filter
     mime_clauses = " or ".join(
         f"mimeType='{mime}'" for mime in SUPPORTED_MIME_MAP
     )
     query = f"({mime_clauses}) and trashed=false"
 
     all_files: list[dict[str, str]] = []
-    seen_ids: set[str] = set()  # Guard against duplicate entries
+    seen_ids: set[str] = set()
     page_token: str | None = None
 
     while True:
@@ -157,7 +110,7 @@ def list_files(credentials: Credentials) -> list[dict[str, str]]:
                 {"id": file_id, "name": f["name"], "mimeType": f["mimeType"]}
             )
 
-            # Enforce safety cap
+            # Safety cap check
             if len(all_files) >= max_cap:
                 logger.warning(
                     "Safety cap reached (%d files). Stopping file listing.", max_cap
@@ -178,24 +131,8 @@ def list_files(credentials: Credentials) -> list[dict[str, str]]:
     return all_files
 
 
-def download_file(
-    credentials: Credentials,
-    file_id: str,
-    file_name: str,
-) -> str:
-    """Download a single file from Google Drive to the local downloads dir.
-
-    Args:
-        credentials: Valid OAuth2 credentials.
-        file_id: The Google Drive file ID.
-        file_name: The original file name (used for the local copy).
-
-    Returns:
-        The absolute path to the downloaded file as a string.
-
-    Raises:
-        RuntimeError: If the file extension is not supported.
-    """
+def download_file(credentials: Credentials, file_id: str, file_name: str) -> str:
+    """Download a single file from Drive to the local downloads directory."""
     ext = get_file_extension(file_name)
     if ext not in SUPPORTED_EXTENSIONS:
         raise RuntimeError(
