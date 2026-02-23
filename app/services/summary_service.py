@@ -10,9 +10,9 @@ from app.config import settings, PROMPTS_DIR
 logger = logging.getLogger(__name__)
 
 # Tuneable constants
-_TEMPERATURE: float = 0.2   # low temp for deterministic output
-_MAX_CHUNK_CHARS: int = 10_000  # ~3k tokens
-_REQUEST_TIMEOUT: float = 60.0  # API timeout in seconds
+_TEMPERATURE: float = 0.2  
+_MAX_CHUNK_CHARS: int = 10_000  
+_REQUEST_TIMEOUT: float = 60.0  
 
 
 # Prompt loading
